@@ -9,13 +9,13 @@ from sentence_transformers import SentenceTransformer
 
 class Embedder:
     def __init__(self, model_name: str):
-        self.model = SentenceTransformer(model_name)
-        self.model: SentenceTransformer | None = None
-    
+        self._model_name = model_name
+        self._model: SentenceTransformer | None = None
+
     @property
     def model(self) -> SentenceTransformer:
         if self._model is None:
-            self.model = SentenceTransformer(self._model_name)
+            self._model = SentenceTransformer(self._model_name)
         return self._model
     
     def embed(self, texts: list[str]) -> list[list[float]]:

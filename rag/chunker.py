@@ -28,7 +28,7 @@ def chunk_text(
         window = words[start:start + size_words]
         if not window:
             break
-        chunks.append(Chunk(text= "".join(window), source = source, index=len(chunks)))
+        chunks.append(Chunk(text=" ".join(window), source=source, index=len(chunks)))
         if start + size_words >= len(words):
             break 
     return chunks

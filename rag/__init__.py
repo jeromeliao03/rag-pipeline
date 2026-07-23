@@ -1,0 +1,1 @@
+"""A minimal, readable Retrieval-Augmented Generation pipeline."""

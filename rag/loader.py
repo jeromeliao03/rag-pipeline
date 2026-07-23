@@ -1,23 +1,44 @@
-# Document loader module
-from dataclasses import dataclass 
-from pathlib import Path
-from typing import Iterator 
-from pypdf import PdfReader
+"""Stage 1 — Load.
 
-SUPPORTED_EXTENSIONS  = [".txt",".pdf",".md"]
+Pull clean text out of source files. This is where real-world RAG quality is
+often won or lost: bad extraction (broken tables, headers bleeding into body
+text, or missing spaces between words) poisons everything downstream. v0
+keeps it simple and handles the three most common formats.
+
+Upgrade points:
+  - Add loaders for .docx, .html, .csv, etc.
+  - OCR for scanned/image-only PDFs, or PDFs with structurally overlapping
+    text layers that no tolerance setting can untangle (pytesseract + pdf2image).
+"""
+import re
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Iterator
+
+import pdfplumber
+
+SUPPORTED_EXTENSIONS = {".txt", ".md", ".pdf"}
+
+# Matches a lowercase letter immediately followed by an uppercase letter —
+# e.g. the boundary inside "PromptManagement" or "HallucinationDetection".
+# This is the most common shape glued-together PDF words take, so inserting
+# a space at each match recovers a lot of readability regardless of what
+# caused the original extraction to lose the space.
+_GLUED_WORD_BOUNDARY = re.compile(r"([a-z])([A-Z])")
+
 
 @dataclass
 class Document:
-    source  : str   #relative path used for citations
-    text    : str
+    source: str  # relative path, used later for citations
+    text: str
+
 
 def load_documents(source_dir: str) -> Iterator[Document]:
-# Goes through a folder and all subfolders, finds every file that is supported and ceates
-# a Document object for each one, yielding it to the caller.
+    """Walk a directory recursively and yield one Document per supported file."""
     root = Path(source_dir)
     if not root.exists():
-        raise FileNotFoundError(f"Source directory {source_dir} does not exist.")
-    
+        raise FileNotFoundError(f"Source directory not found: {source_dir}")
+
     for path in sorted(root.rglob("*")):
         if not path.is_file() or path.suffix.lower() not in SUPPORTED_EXTENSIONS:
             continue
@@ -25,14 +46,27 @@ def load_documents(source_dir: str) -> Iterator[Document]:
         if text.strip():
             yield Document(source=str(path.relative_to(root)), text=text)
 
+
 def _extract(path: Path) -> str:
-    # Extracts text from a file, handling different formats based on the file extension.
     if path.suffix.lower() == ".pdf":
         return _read_pdf(path)
     return path.read_text(encoding="utf-8", errors="ignore")
 
+
 def _read_pdf(path: Path) -> str:
-    # Reads a PDF file and extracts text from all its pages, concatenating them into a single string.
-    reader = PdfReader(str(path))
-    pages = [page.extract_text() or "" for page in reader.pages]
-    return "\n".join(pages)
+    pages = []
+    with pdfplumber.open(str(path)) as pdf:
+        for page in pdf.pages:
+            words = page.extract_words(x_tolerance=2)
+            pages.append(" ".join(w["text"] for w in words))
+    text = "\n".join(pages)
+    return _fix_glued_words(text)   # ← route through the cleanup step
+
+
+def _fix_glued_words(text: str) -> str:
+    """Insert a space wherever a lowercase letter is immediately followed by
+    an uppercase one — a safety net for words the PDF extractor still glued
+    together (e.g. slides with structurally overlapping text layers that no
+    extraction tolerance can fully separate).
+    """
+    return _GLUED_WORD_BOUNDARY.sub(r"\1 \2", text)

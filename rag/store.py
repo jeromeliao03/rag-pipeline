@@ -1,9 +1,3 @@
-"""Stage 4 — Store.
-
-A thin wrapper over Chroma, a local vector database. Its one job is fast
-nearest-neighbour search: given a query vector, return the closest chunk
-vectors. Persists to disk so you index once and query many times.
-"""
 import chromadb
 
 

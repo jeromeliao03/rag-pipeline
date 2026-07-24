@@ -1,11 +1,4 @@
 # Document retrieval module
-"""
-Embed the incoming question with the same model used at index time, 
-then asks the store for the top k closest chunks. Returns the text of those chunks, 
-along with their source and index for citation.
-if the right passage isn't in what comes back here no amount of LMM cleavery 
-will make it appear in the answer.
-"""
 
 from dataclasses import dataclass
 

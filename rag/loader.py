@@ -1,15 +1,4 @@
-"""Stage 1 — Load.
-
-Pull clean text out of source files. This is where real-world RAG quality is
-often won or lost: bad extraction (broken tables, headers bleeding into body
-text, or missing spaces between words) poisons everything downstream. v0
-keeps it simple and handles the three most common formats.
-
-Upgrade points:
-  - Add loaders for .docx, .html, .csv, etc.
-  - OCR for scanned/image-only PDFs, or PDFs with structurally overlapping
-    text layers that no tolerance setting can untangle (pytesseract + pdf2image).
-"""
+#Pull clean text out of source files.
 import re
 from dataclasses import dataclass
 from pathlib import Path

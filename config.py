@@ -1,10 +1,4 @@
 # Configuration settings for RAG pipeline
-"""Central configuration for the RAG pipeline.
-
-Everything tunable lives here so you can experiment without hunting through
-the codebase. Environment variables override the defaults where it makes
-sense (handy for running in CI or a container later).
-"""
 import os
 
 # --- Models -----------------------------------------------------------------

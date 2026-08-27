@@ -3,3 +3,5 @@ sentence-transformers>=3.0
 pdfplumber>=0.11
 anthropic>=0.40
 python-dotenv>=1.0
+fastapi>=0.100
+uvicorn>=0.30

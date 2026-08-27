@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAG Pipeline — Upload documents</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Upload documents</h1>
+    <p class="sub">Add .txt, .md, or .pdf files. They're saved into the docs/ folder, then indexed when you click Reindex.</p>
+    <nav>
+      <a href="index.html">Ask</a>
+      <a href="upload.html" class="active">Upload documents</a>
+    </nav>
+  </header>
+
+  <div class="dropzone" id="dropzone">
+    <p>Drag files here, or <span class="browse">browse</span></p>
+    <input type="file" id="fileInput" multiple accept=".txt,.md,.pdf">
+  </div>
+
+  <div class="file-list" id="fileList"></div>
+
+  <div class="actions">
+    <button id="uploadBtn" disabled>Upload</button>
+    <button id="reindexBtn" class="secondary">Reindex now</button>
+  </div>
+
+  <div class="status" id="status"></div>
+
+  <div class="index-stats" id="indexStats">Checking index status...</div>
+
+</div>
+
+<script>
+  const API_BASE = "http://localhost:8000";
+
+  const dropzone = document.getElementById("dropzone");
+  const fileInput = document.getElementById("fileInput");
+  const fileListEl = document.getElementById("fileList");
+  const uploadBtn = document.getElementById("uploadBtn");
+  const reindexBtn = document.getElementById("reindexBtn");
+  const statusEl = document.getElementById("status");
+  const indexStatsEl = document.getElementById("indexStats");
+
+  let pendingFiles = [];
+
+  // Click-to-browse
+  dropzone.addEventListener("click", () => fileInput.click());
+  fileInput.addEventListener("change", (e) => addFiles(e.target.files));
+
+  // Drag and drop
+  ["dragenter", "dragover"].forEach(evt =>
+    dropzone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      dropzone.classList.add("dragover");
+    })
+  );
+  ["dragleave", "drop"].forEach(evt =>
+    dropzone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      dropzone.classList.remove("dragover");
+    })
+  );
+  dropzone.addEventListener("drop", (e) => addFiles(e.dataTransfer.files));
+
+  function addFiles(fileListArg) {
+    const allowed = [".txt", ".md", ".pdf"];
+    for (const file of fileListArg) {
+      const ext = "." + file.name.split(".").pop().toLowerCase();
+      if (!allowed.includes(ext)) {
+        setStatus(`Skipped ${file.name} — unsupported type ${ext}`, "error");
+        continue;
+      }
+      // avoid duplicate entries if the same file is added twice
+      if (!pendingFiles.some(f => f.name === file.name && f.size === file.size)) {
+        pendingFiles.push(file);
+      }
+    }
+    renderFileList();
+  }
+
+  function renderFileList() {
+    if (pendingFiles.length === 0) {
+      fileListEl.innerHTML = "";
+      uploadBtn.disabled = true;
+      return;
+    }
+    fileListEl.innerHTML = pendingFiles.map((f, i) => `
+      <div class="file-row">
+        <span class="name">${f.name}</span>
+        <span class="size">${(f.size / 1024).toFixed(1)} KB</span>
+        <button class="remove" data-i="${i}" title="Remove">&times;</button>
+      </div>
+    `).join("");
+    uploadBtn.disabled = false;
+
+    fileListEl.querySelectorAll(".remove").forEach(btn => {
+      btn.addEventListener("click", () => {
+        pendingFiles.splice(Number(btn.dataset.i), 1);
+        renderFileList();
+      });
+    });
+  }
+
+  function setStatus(text, kind) {
+    statusEl.className = kind ? `status ${kind}` : "status";
+    statusEl.textContent = text;
+  }
+
+  uploadBtn.addEventListener("click", async () => {
+    if (pendingFiles.length === 0) return;
+    uploadBtn.disabled = true;
+    setStatus(`Uploading ${pendingFiles.length} file(s)...`);
+
+    const formData = new FormData();
+    pendingFiles.forEach(f => formData.append("files", f));
+
+    try {
+      const res = await fetch(`${API_BASE}/upload`, { method: "POST", body: formData });
+      if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+      const data = await res.json();
+
+      let msg = `Saved ${data.saved.length} file(s) to docs/.`;
+      if (data.rejected.length > 0) {
+        msg += ` ${data.rejected.length} rejected (unsupported type).`;
+      }
+      setStatus(msg, "success");
+
+      pendingFiles = [];
+      renderFileList();
+      fileInput.value = "";
+    } catch (err) {
+      setStatus(`Error: ${err.message}`, "error");
+    } finally {
+      uploadBtn.disabled = pendingFiles.length === 0;
+    }
+  });
+
+  reindexBtn.addEventListener("click", async () => {
+    reindexBtn.disabled = true;
+    setStatus("Reindexing docs/ — this embeds every document, may take a moment...");
+
+    try {
+      const res = await fetch(`${API_BASE}/reindex`, { method: "POST" });
+      if (!res.ok) throw new Error(`Reindex failed (${res.status})`);
+      const data = await res.json();
+      setStatus(
+        `Reindexed ${data.files_indexed} file(s), ${data.total_chunks} chunks. Collection now holds ${data.collection_size} chunks.`,
+        "success"
+      );
+      refreshIndexStats();
+    } catch (err) {
+      setStatus(`Error: ${err.message}`, "error");
+    } finally {
+      reindexBtn.disabled = false;
+    }
+  });
+
+  async function refreshIndexStats() {
+    try {
+      const res = await fetch(`${API_BASE}/health`);
+      const data = await res.json();
+      indexStatsEl.innerHTML = `Index currently holds <strong>${data.chunks_indexed}</strong> chunks.`;
+    } catch {
+      indexStatsEl.textContent = `Can't reach the API at ${API_BASE}. Is it running?`;
+    }
+  }
+
+  refreshIndexStats();
+</script>
+</body>
+</html>

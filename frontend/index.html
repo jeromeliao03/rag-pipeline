@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAG Pipeline — Ask your documents</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Ask your documents</h1>
+    <p class="sub">Questions are answered only from retrieved passages, with citations you can trace back to the source below.</p>
+    <nav>
+      <a href="index.html" class="active">Ask</a>
+      <a href="upload.html">Upload documents</a>
+    </nav>
+  </header>
+
+  <div class="ask">
+    <input type="text" id="question" placeholder="e.g. what is concept drift and how do you detect it" autofocus>
+    <button id="askBtn">Ask</button>
+  </div>
+  <p class="hint">Press Enter to submit</p>
+
+  <div class="status" id="status"></div>
+  <div class="answer" id="answer"></div>
+
+</div>
+
+<script>
+  const API_BASE = "http://localhost:8000";
+
+  const questionEl = document.getElementById("question");
+  const askBtn = document.getElementById("askBtn");
+  const statusEl = document.getElementById("status");
+  const answerEl = document.getElementById("answer");
+  const sourceListEl = document.getElementById("sourceList");
+
+  questionEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") askQuestion();
+  });
+  askBtn.addEventListener("click", askQuestion);
+
+  // Turns "[1]" / "[2]" in the streamed answer text into clickable chips
+  // that highlight the matching source card below.
+  function linkifyCitations(text) {
+    return text.replace(/\[(\d+)\]/g, (match, n) => {
+      return `<span class="citation" data-src="${n}">[${n}]</span>`;
+    });
+  }
+
+  function renderSources(sources) {
+    if (sources.length === 0) {
+      sourceListEl.innerHTML = '<p class="empty">No matching passages found.</p>';
+      return;
+    }
+    sourceListEl.innerHTML = sources.map(s => `
+      <div class="source-card" id="source-${s.index}">
+        <div class="meta">
+          <span class="idx">[${s.index}]</span>
+          <span class="file">${s.source} · distance ${s.distance.toFixed(3)}</span>
+        </div>
+        <div class="text">${s.text.slice(0, 220)}...</div>
+      </div>
+    `).join("");
+  }
+
+  answerEl.addEventListener("click", (e) => {
+    if (!e.target.classList.contains("citation")) return;
+    const idx = e.target.dataset.src;
+    const card = document.getElementById(`source-${idx}`);
+    if (!card) return;
+    card.scrollIntoView({ behavior: "smooth", block: "center" });
+    card.classList.add("highlight");
+    setTimeout(() => card.classList.remove("highlight"), 1500);
+  });
+
+  async function askQuestion() {
+    const question = questionEl.value.trim();
+    if (!question) return;
+
+    askBtn.disabled = true;
+    statusEl.className = "status";
+    statusEl.textContent = "Searching documents...";
+    answerEl.innerHTML = "";
+    sourceListEl.innerHTML = "";
+
+    try {
+      const res = await fetch(`${API_BASE}/query/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question }),
+      });
+
+      if (!res.ok || !res.body) {
+        throw new Error(`Request failed (${res.status})`);
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let rawAnswer = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const events = buffer.split("\n\n");
+        buffer = events.pop();
+
+        for (const raw of events) {
+          const eventLine = raw.split("\n").find(l => l.startsWith("event:"));
+          const dataLine = raw.split("\n").find(l => l.startsWith("data:"));
+          if (!eventLine || !dataLine) continue;
+
+          const eventType = eventLine.replace("event:", "").trim();
+          const data = JSON.parse(dataLine.replace("data:", "").trim());
+
+          if (eventType === "sources") {
+            renderSources(data);
+            statusEl.textContent = `Found ${data.length} passages. Generating answer...`;
+          } else if (eventType === "token") {
+            rawAnswer += data.text;
+            answerEl.innerHTML = linkifyCitations(rawAnswer);
+          } else if (eventType === "done") {
+            statusEl.textContent = "";
+          } else if (eventType === "error") {
+            statusEl.className = "status error";
+            statusEl.textContent = data.message;
+          }
+        }
+      }
+    } catch (err) {
+      statusEl.className = "status error";
+      statusEl.textContent = `Error: ${err.message}. Is the API running at ${API_BASE}?`;
+    } finally {
+      askBtn.disabled = false;
+    }
+  }
+</script>
+</body>
+</html>

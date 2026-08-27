@@ -1,0 +1,22 @@
+[
+  {
+    "question": "what is prompt management and hallucination detection",
+    "expected_source": "Seminar 5"
+  },
+  {
+    "question": "what is concept drift and how do you detect it",
+    "expected_source": "Seminar 5"
+  },
+  {
+    "question": "what are MLOps best practices for production",
+    "expected_source": "Seminar 3"
+  },
+  {
+    "question": "what security threats affect AI models",
+    "expected_source": "Seminar 10"
+  },
+  {
+    "question": "what is supervised learning",
+    "expected_source": "Seminar 4"
+  }
+]

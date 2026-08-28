@@ -49,7 +49,7 @@ def list_documents() -> dict:
 
     files = []
     for path in sorted(DOCS_DIR.rglob("*")):
-        if path.is_file() and path.suffix.lower() in SUPPORTED_EXTENSIONS:
+        if not path.is_file() or path.suffix.lower() not in SUPPORTED_EXTENSIONS:
             continue
         source = str(path.relative_to(DOCS_DIR))
         chunk_count = chunk_counts.get(source, 0)
@@ -57,7 +57,7 @@ def list_documents() -> dict:
             "filename": source,
             "size_bytes": path.stat().st_size,
             "indexed": chunk_count > 0,
-            "chunks_indexed": chunk_count
+            "chunk_count": chunk_count,
         })
 
     return {"files": files, "total_chunks_indexed": _store.count()}

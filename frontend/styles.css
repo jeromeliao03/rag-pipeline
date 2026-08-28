@@ -6,38 +6,43 @@
   --accent: #A8791E;
   --accent-soft: #F3E7CC;
   --evidence: #F6EFD9;
+
   --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
   --sans: -apple-system, "Segoe UI", sans-serif;
   --serif: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
 }
 
-*{box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
 body {
-    margin: 0;
-    background: var(--paper);
-    color: var(--ink);
-    font-family: var(--sans);
-    -webkit-font-smoothing: antialiased;
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--serif);
+  -webkit-font-smoothing: antialiased;
 }
 
 .wrap {
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 56px 24px 120px;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 56px 24px 120px;
 }
+
+/* Header */
 
 header {
-    margin-bottom: 48px;
-    border-bottom: 1px solid var(--rule);
-    padding-bottom: 24px;
+  margin-bottom: 40px;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 24px;
 }
 
-h1{
-    font-size: 32px;
-    font-weight: 600;
-    margin: 0 0 6px;
-    letter-spacing: -0.01em;
+h1 {
+  font-size: 28px;
+  font-weight: 600;
+  margin: 0 0 6px;
+  letter-spacing: -0.01em;
 }
 
 .sub {
@@ -47,14 +52,15 @@ h1{
   line-height: 1.5;
   max-width: 56ch;
 }
- 
-/* Nav between pages */
+
+/* Navigation */
+
 nav {
   font-family: var(--sans);
   font-size: 13px;
   margin-top: 14px;
 }
- 
+
 nav a {
   color: var(--ink-soft);
   text-decoration: none;
@@ -62,7 +68,7 @@ nav a {
   padding-bottom: 2px;
   border-bottom: 1px solid transparent;
 }
- 
+
 nav a:hover,
 nav a.active {
   color: var(--accent);
@@ -70,12 +76,13 @@ nav a.active {
 }
 
 /* Ask page */
+
 .ask {
   display: flex;
   gap: 10px;
   margin-bottom: 8px;
 }
- 
+
 input[type="text"] {
   flex: 1;
   font-family: var(--sans);
@@ -87,12 +94,12 @@ input[type="text"] {
   color: var(--ink);
   outline: none;
 }
- 
+
 input[type="text"]:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
- 
+
 button {
   font-family: var(--sans);
   font-size: 14px;
@@ -104,21 +111,23 @@ button {
   color: var(--paper);
   cursor: pointer;
 }
- 
+
 button:disabled {
   background: var(--ink-soft);
   cursor: default;
 }
- 
-button:not(:disabled):hover { background: var(--accent); }
- 
+
+button:not(:disabled):hover {
+  background: var(--accent);
+}
+
 .hint {
   font-family: var(--sans);
   font-size: 12px;
   color: var(--ink-soft);
   margin: 0 0 36px;
 }
- 
+
 .status {
   font-family: var(--sans);
   font-size: 13px;
@@ -126,99 +135,58 @@ button:not(:disabled):hover { background: var(--accent); }
   min-height: 18px;
   margin-bottom: 18px;
 }
- 
-.status.error { color: #A83E1E; }
-.status.success { color: #2E7D4F; }
- 
+
+.status.error {
+  color: #A83E1E;
+}
+
+.status.success {
+  color: #2E7D4F;
+}
+
+/* Answer */
+
 .answer {
   font-size: 17px;
   line-height: 1.7;
   white-space: pre-wrap;
   min-height: 24px;
 }
- 
-.citation {
-  display: inline-block;
-  font-family: var(--mono);
+
+/*
+  Lightweight source footer
+
+  The footer only appears when it contains sources.
+  No cards, previews, indexes, distances or scrolling.
+*/
+
+.source-footer {
+  font-family: var(--sans);
   font-size: 12px;
-  font-weight: 600;
-  color: var(--accent);
-  background: var(--accent-soft);
-  border-radius: 3px;
-  padding: 0 5px;
-  margin: 0 1px;
-  cursor: pointer;
-  text-decoration: none;
-}
- 
-.citation:hover { background: var(--accent); color: #fff; }
- 
-.sources {
-  margin-top: 48px;
-  padding-top: 24px;
+  color: var(--ink-soft);
+
+  margin-top: 28px;
+  padding-top: 16px;
+
   border-top: 1px solid var(--rule);
-}
- 
-.sources h2 {
-  font-family: var(--sans);
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--ink-soft);
-  margin: 0 0 16px;
-  font-weight: 600;
-}
- 
-.source-card {
-  background: #fff;
-  border: 1px solid var(--rule);
-  border-radius: 6px;
-  padding: 14px 16px;
-  margin-bottom: 10px;
-  transition: background 0.15s ease;
-}
- 
-.source-card.highlight {
-  background: var(--evidence);
-  border-color: var(--accent);
-}
- 
-.source-card .meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 6px;
-}
- 
-.source-card .idx {
-  font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--accent);
-}
- 
-.source-card .file {
-  font-family: var(--sans);
-  font-size: 12px;
-  color: var(--ink-soft);
-  text-align: right;
-}
- 
-.source-card .text {
-  font-family: var(--sans);
-  font-size: 13px;
-  color: var(--ink-soft);
+
   line-height: 1.5;
 }
- 
-.empty {
-  font-family: var(--sans);
-  font-size: 14px;
-  color: var(--ink-soft);
-  font-style: italic;
+
+/* Hide the footer completely when there are no sources */
+
+.source-footer:empty {
+  display: none;
 }
- 
+
+/* Make "Sources:" slightly stronger */
+
+.source-footer::first-line {
+  font-weight: 500;
+}
+
 /* Upload page */
+
 .dropzone {
   border: 2px dashed var(--rule);
   border-radius: 8px;
@@ -228,32 +196,34 @@ button:not(:disabled):hover { background: var(--accent); }
   transition: border-color 0.15s ease, background 0.15s ease;
   margin-bottom: 20px;
 }
- 
+
 .dropzone:hover,
 .dropzone.dragover {
   border-color: var(--accent);
   background: var(--accent-soft);
 }
- 
+
 .dropzone p {
   font-family: var(--sans);
   color: var(--ink-soft);
   font-size: 14px;
   margin: 0;
 }
- 
+
 .dropzone .browse {
   color: var(--accent);
   font-weight: 600;
   text-decoration: underline;
 }
- 
-#fileInput { display: none; }
- 
+
+#fileInput {
+  display: none;
+}
+
 .file-list {
   margin-bottom: 20px;
 }
- 
+
 .file-row {
   display: flex;
   justify-content: space-between;
@@ -266,10 +236,16 @@ button:not(:disabled):hover { background: var(--accent); }
   margin-bottom: 6px;
   background: #fff;
 }
- 
-.file-row .name { color: var(--ink); }
-.file-row .size { color: var(--ink-soft); font-size: 12px; }
- 
+
+.file-row .name {
+  color: var(--ink);
+}
+
+.file-row .size {
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
 .file-row .remove {
   background: none;
   border: none;
@@ -278,26 +254,28 @@ button:not(:disabled):hover { background: var(--accent); }
   font-size: 16px;
   padding: 0 4px;
 }
- 
-.file-row .remove:hover { color: #A83E1E; }
- 
+
+.file-row .remove:hover {
+  color: #A83E1E;
+}
+
 .actions {
   display: flex;
   gap: 10px;
   margin-bottom: 24px;
 }
- 
+
 .actions button.secondary {
   background: #fff;
   color: var(--ink);
   border: 1px solid var(--rule);
 }
- 
+
 .actions button.secondary:hover {
   background: var(--accent-soft);
   border-color: var(--accent);
 }
- 
+
 .index-stats {
   font-family: var(--sans);
   font-size: 13px;
@@ -305,5 +283,7 @@ button:not(:disabled):hover { background: var(--accent); }
   padding-top: 20px;
   border-top: 1px solid var(--rule);
 }
- 
-.index-stats strong { color: var(--ink); }
+
+.index-stats strong {
+  color: var(--ink);
+}

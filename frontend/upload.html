@@ -32,6 +32,11 @@
 
   <div class="status" id="status"></div>
 
+  <div class ="sources">
+    <h2>Documents Uploaded</h2>
+    <div id="docList"><p class="empty">No documents uploaded yet.</p></div>
+  </div>
+
   <div class="index-stats" id="indexStats">Checking index status...</div>
 
 </div>
@@ -45,6 +50,7 @@
   const uploadBtn = document.getElementById("uploadBtn");
   const reindexBtn = document.getElementById("reindexBtn");
   const statusEl = document.getElementById("status");
+  const docListEl = document.getElementById("docList");
   const indexStatsEl = document.getElementById("indexStats");
 
   let pendingFiles = [];
@@ -112,39 +118,73 @@
     statusEl.textContent = text;
   }
 
-  uploadBtn.addEventListener("click", async () => {
+  //docs uploaded so far list 
+   function renderDocList(files) {
+    if (files.length === 0) {
+      docListEl.innerHTML = '<p class="empty">No documents yet — upload some above.</p>';
+      return;
+    }
+    docListEl.innerHTML = files.map(f => `
+      <div class="source-card">
+        <div class="meta">
+          <span class="file">${f.filename}</span>
+          <span class="idx" style="color: ${f.indexed ? 'var(--accent)' : '#A83E1E'}">
+            ${f.indexed ? `indexed · ${f.chunk_count} chunks` : "not indexed yet"}
+          </span>
+        </div>
+        <div class="text">${(f.size_bytes / 1024).toFixed(1)} KB</div>
+      </div>
+    `).join("");
+  }
+
+    async function refreshDocuments() {
+    try {
+      const res = await fetch(`${API_BASE}/documents`);
+      if (!res.ok) throw new Error(`Request failed (${res.status})`);
+      const data = await res.json();
+      renderDocList(data.files);
+      indexStatsEl.innerHTML = `Index currently holds <strong>${data.total_chunks_indexed}</strong> chunks across ${data.files.filter(f => f.indexed).length} of ${data.files.length} file(s).`;
+    } catch (err) {
+      docListEl.innerHTML = `<p class="empty">Can't reach the API at ${API_BASE}. Is it running?</p>`;
+      indexStatsEl.textContent = "";
+    }
+  }
+  
+
+    uploadBtn.addEventListener("click", async () => {
     if (pendingFiles.length === 0) return;
     uploadBtn.disabled = true;
     setStatus(`Uploading ${pendingFiles.length} file(s)...`);
-
+ 
     const formData = new FormData();
     pendingFiles.forEach(f => formData.append("files", f));
-
+ 
     try {
       const res = await fetch(`${API_BASE}/upload`, { method: "POST", body: formData });
       if (!res.ok) throw new Error(`Upload failed (${res.status})`);
       const data = await res.json();
-
-      let msg = `Saved ${data.saved.length} file(s) to docs/.`;
+ 
+      let msg = `Saved ${data.saved.length} file(s) to docs/. Click Reindex to make them searchable.`;
       if (data.rejected.length > 0) {
         msg += ` ${data.rejected.length} rejected (unsupported type).`;
       }
       setStatus(msg, "success");
-
+ 
       pendingFiles = [];
       renderFileList();
       fileInput.value = "";
+      refreshDocuments();
     } catch (err) {
       setStatus(`Error: ${err.message}`, "error");
     } finally {
       uploadBtn.disabled = pendingFiles.length === 0;
     }
   });
-
+ 
   reindexBtn.addEventListener("click", async () => {
     reindexBtn.disabled = true;
     setStatus("Reindexing docs/ — this embeds every document, may take a moment...");
-
+ 
     try {
       const res = await fetch(`${API_BASE}/reindex`, { method: "POST" });
       if (!res.ok) throw new Error(`Reindex failed (${res.status})`);
@@ -153,7 +193,7 @@
         `Reindexed ${data.files_indexed} file(s), ${data.total_chunks} chunks. Collection now holds ${data.collection_size} chunks.`,
         "success"
       );
-      refreshIndexStats();
+      refreshDocuments();
     } catch (err) {
       setStatus(`Error: ${err.message}`, "error");
     } finally {
@@ -161,17 +201,7 @@
     }
   });
 
-  async function refreshIndexStats() {
-    try {
-      const res = await fetch(`${API_BASE}/health`);
-      const data = await res.json();
-      indexStatsEl.innerHTML = `Index currently holds <strong>${data.chunks_indexed}</strong> chunks.`;
-    } catch {
-      indexStatsEl.textContent = `Can't reach the API at ${API_BASE}. Is it running?`;
-    }
-  }
-
-  refreshIndexStats();
+  refreshDocuments();
 </script>
 </body>
 </html>

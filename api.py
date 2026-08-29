@@ -3,7 +3,7 @@ import shutil
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse 
 from pydantic import BaseModel
@@ -18,6 +18,7 @@ from rag.store import VectorStore
 
 load_dotenv()
 
+# API setup
 app = FastAPI(title="RAG API", description="API for RAG model", version="1.0.0")
 
 app.add_middleware(
@@ -27,16 +28,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Folder where uploaded docs live and the shared RAG components.
 DOCS_DIR = Path("docs")
 
 _embedder = Embedder(config.EMBED_MODEL)
 _store = VectorStore(config.PERSIST_DIR, config.COLLECTION_NAME)
 _retriever = Retriever(Embedder(config.EMBED_MODEL), _store)
 
+
+# Request models
 class QueryRequest(BaseModel):
     question: str
     top_k: int = config.TOP_K
 
+class DeleteRequest(BaseModel):
+    filename: str # must match a vile namevalue from Get /documents
+
+
+# Health and document listing
 @app.get("/health")
 def health() -> dict:
     return {"Status" : "Ok", "Chunks_indexed": _store.count()}
@@ -63,6 +72,7 @@ def list_documents() -> dict:
     return {"files": files, "total_chunks_indexed": _store.count()}
 
 
+# Ask a question and stream the answer
 @app.post("/query/stream")
 def query_stream(req: QueryRequest) -> StreamingResponse:
     def event_stream():
@@ -72,7 +82,7 @@ def query_stream(req: QueryRequest) -> StreamingResponse:
             {"index": i, "source": c.source, "distance": c.distance, "text": c.text}
             for i, c in enumerate(chunks, start=1)
         ]
-        yield f"event: sources\ndata  {json.dumps(sources_payload)}\n\n"
+        yield f"event: sources\ndata: {json.dumps(sources_payload)}\n\n"
 
         if not chunks: 
             yield f"event: error \ndata: {json.dumps({'message': 'No relevant chunks found.'})}\n\n"
@@ -84,6 +94,7 @@ def query_stream(req: QueryRequest) -> StreamingResponse:
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
+# Upload and reindex docs
 @app.post("/upload")
 async def upload_files(files: list[UploadFile] = File(...)) -> dict:
 
@@ -126,10 +137,35 @@ def reindex() -> dict:
         total_chunks += len(chunks)
         files_indexed += 1
 
-    return {"files_indexed": files_indexed, "total_chunks_indexed": total_chunks, 
-            "Collection_size": _store.count()}
+    return {"files_indexed": files_indexed, "total_chunks": total_chunks, 
+        "collection_size": _store.count()}
 
+# Delete a document and its chunks
+@app.post("/documents/delete")
+def delete_document(req: DeleteRequest) -> dict:
+    target = DOCS_DIR / req.filename
 
+    try:
+        resolved = target.resolve()
+        docs_resolved = DOCS_DIR.resolve()
+        if docs_resolved not in resolved.parents and resolved != docs_resolved:
+            raise HTTPException(status_code=400, detail="Invalid filename.")
+    except (OSError, ValueError):
+        raise HTTPException(status_code=400, detail="Invalid filename.")
+
+    if not target.exists() or not target.is_file():
+        raise HTTPException(status_code=404, detail=f"'{req.filename}' not found in docs directory.")
+
+    chunks_removed = _store.delete_by_source(req.filename)
+    target.unlink()
+
+    return{
+        "filename": req.filename,
+        "file_deleted": True,
+        "chunks_removed": chunks_removed,
+        "collection_size": _store.count()
+    }
+    
 
 if __name__ == "__main__":
     import uvicorn

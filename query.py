@@ -1,13 +1,11 @@
-# Query script for RAG pipeline
-"""Query entry point.
+"""Run a question against the indexed document store.
 
-  python query.py "What is the refund policy?"
-  python query.py "..." --top-k 6
-  python query.py "..." --no-llm
-
-Runs the online half of the pipeline: retrieve -> (rerank) -> generate.
+This script retrieves relevant chunks for a user query and optionally calls the
+LLM to generate a final answer based on those passages.
 """
+
 import argparse
+
 from dotenv import load_dotenv
 
 import config
@@ -19,6 +17,7 @@ from rag.store import VectorStore
 load_dotenv()
 
 
+# Main query entry point
 def main() -> None:
     parser = argparse.ArgumentParser(description="Ask a question against the index.")
     parser.add_argument("question", help="The question to answer")

@@ -1,4 +1,5 @@
 :root {
+  /* Color palette */
   --paper: #FAF8F3;
   --ink: #1E2233;
   --ink-soft: #5B5F70;
@@ -7,6 +8,7 @@
   --accent-soft: #F3E7CC;
   --evidence: #F6EFD9;
 
+  /* Fonts */
   --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
   --sans: -apple-system, "Segoe UI", sans-serif;
   --serif: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
@@ -75,7 +77,7 @@ nav a.active {
   border-bottom-color: var(--accent);
 }
 
-/* Ask page */
+/* Ask page — question input */
 
 .ask {
   display: flex;
@@ -99,6 +101,8 @@ input[type="text"]:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
+
+/* Buttons (shared across both pages) */
 
 button {
   font-family: var(--sans);
@@ -128,6 +132,8 @@ button:not(:disabled):hover {
   margin: 0 0 36px;
 }
 
+/* Status line — progress / error / success messages */
+
 .status {
   font-family: var(--sans);
   font-size: 13px;
@@ -144,7 +150,7 @@ button:not(:disabled):hover {
   color: #2E7D4F;
 }
 
-/* Answer */
+/* Answer text */
 
 .answer {
   font-size: 17px;
@@ -153,24 +159,36 @@ button:not(:disabled):hover {
   min-height: 24px;
 }
 
-/*
-  Lightweight source footer
-
-  The footer only appears when it contains sources.
-  No cards, previews, indexes, distances or scrolling.
-*/
+/* Source footer — numbered list under the answer */
 
 .source-footer {
-  font-family: var(--sans);
-  font-size: 12px;
-  color: var(--ink-soft);
-
-  margin-top: 28px;
-  padding-top: 16px;
-
+  margin-top: 32px;
+  padding-top: 20px;
   border-top: 1px solid var(--rule);
+}
 
-  line-height: 1.5;
+.source-footer h2 {
+  font-family: var(--sans);
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+  margin: 0 0 12px;
+  font-weight: 600;
+}
+
+.source-row {
+  font-family: var(--sans);
+  font-size: 14px;
+  color: var(--ink-soft);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.source-row .source-name {
+  color: var(--ink);
 }
 
 /* Hide the footer completely when there are no sources */
@@ -185,7 +203,21 @@ button:not(:disabled):hover {
   font-weight: 500;
 }
 
-/* Upload page */
+/* [1] [2] citation chips — used in both the answer text and source list */
+
+.citation {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 3px;
+  padding: 1px 6px;
+  margin: 0 1px;
+}
+
+/* Upload page — drag & drop zone */
 
 .dropzone {
   border: 2px dashed var(--rule);
@@ -219,6 +251,8 @@ button:not(:disabled):hover {
 #fileInput {
   display: none;
 }
+
+/* Upload page — staged files, before clicking Upload */
 
 .file-list {
   margin-bottom: 20px;
@@ -259,6 +293,8 @@ button:not(:disabled):hover {
   color: #A83E1E;
 }
 
+/* Upload page — Upload / Reindex buttons */
+
 .actions {
   display: flex;
   gap: 10px;
@@ -276,6 +312,8 @@ button:not(:disabled):hover {
   border-color: var(--accent);
 }
 
+/* Upload page — index summary line at the bottom */
+
 .index-stats {
   font-family: var(--sans);
   font-size: 13px;
@@ -286,4 +324,76 @@ button:not(:disabled):hover {
 
 .index-stats strong {
   color: var(--ink);
+}
+
+/* Upload page — document cards (files already in docs/) */
+
+.doc-card {
+  background: #fff;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin-bottom: 12px;
+}
+
+.doc-card-name {
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 8px;
+  word-break: break-word;
+}
+
+.doc-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Indexed / not indexed status pill */
+
+.doc-badge {
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.doc-badge-indexed {
+  color: #0f6e56;
+  background: #E1F5EE;
+}
+
+.doc-badge-pending {
+  color: #A83E1E;
+  background: #FAECE7;
+}
+
+.doc-card-size {
+  font-family: var(--sans);
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+/* Delete button on each document card */
+
+.doc-delete {
+  margin-left: auto;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.doc-delete:hover {
+  border-color: #A83E1E;
+  color: #A83E1E;
+  background: #FAECE7;
 }

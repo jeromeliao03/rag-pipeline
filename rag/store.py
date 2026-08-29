@@ -1,6 +1,12 @@
+"""Vector database wrapper for storing and querying embedded document chunks.
+
+This file manages the Chroma collection that holds chunk text, metadata, and
+embeddings so retrieval can find the closest matching passages for a question.
+"""
+
 import chromadb
 
-
+# Chroma vector store wrapper
 class VectorStore:
     def __init__(self, persist_dir: str, collection_name: str):
         self.client = chromadb.PersistentClient(path=persist_dir)
@@ -33,7 +39,7 @@ class VectorStore:
         return self.collection.count()
 
     def chunk_counts_by_source(self) -> dict[str, int]:
-
+        # Count how many indexed chunks belong to each source file.
         if self.count() == 0:
             return {}
 
@@ -43,6 +49,14 @@ class VectorStore:
             source = meta.get('source', 'unknown')
             counts[source] = counts.get(source, 0) + 1
         return counts
+
+    def delete_by_source(self, source: str) -> int:
+        """Remove every chunk belonging to one source file and return the number deleted."""
+        existing = self.chunk_counts_by_source()
+        removed = existing.get(source, 0)
+        if removed > 0:
+            self.collection.delete(where={"source": source})
+        return removed
 
     def reset(self) -> None:
         """Wipe the collection for a clean rebuild."""

@@ -1,38 +1,44 @@
-# Document retrieval module
+"""Retrieval layer for finding the most relevant chunks for a user question.
+
+This module embeds the question, queries the vector store, and reconstructs the
+matching text chunks into a small data object that the generator can use.
+"""
 
 from dataclasses import dataclass
 
 from .embedder import Embedder
 from .store import VectorStore
 
+
+# Retrieved chunk model
 @dataclass
 class RetrievedChunk:
     text: str
     source: str
-    index: int 
-    distance: float #lower = more similar 
+    index: int
+    distance: float  # lower = more similar
 
+
+# Retriever
 class Retriever:
     def __init__(self, embedder: Embedder, store: VectorStore):
         self.embedder = embedder
         self.store = store
 
     def retrieve(self, question: str, top_k: int) -> list[RetrievedChunk]:
-        # Embed with the same Model used at index time 
-        # anything within one shared vector space is comparable, so the same model 
+        # Embed with the same model used at index time.
+        # Anything within one shared vector space is comparable, so the same model
         # must be used for both indexing and retrieval.
-
         query_vector = self.embedder.embed([question])[0]
         result = self.store.query(query_vector, top_k)
 
-        #Chroma nests every field one level deeeper than expected 
-        #Because API supports batching several queries at once
-
+        # Chroma nests every field one level deeper than expected because the API
+        # supports batching several queries at once.
         documents = result['documents'][0]
         metadatas = result['metadatas'][0]
         distances = result['distances'][0]
 
-        #Zip the three parallel lists back into one object per chunk
+        # Zip the three parallel lists back into one object per chunk.
         return [
             RetrievedChunk(
                 text=doc,

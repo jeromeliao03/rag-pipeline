@@ -1,3 +1,9 @@
+"""Evaluate retrieval quality against a known set of test questions.
+
+This script loads a JSON question list, queries the indexed document store, and
+prints hit-rate and MRR metrics to see how well the retriever is working.
+"""
+
 import argparse
 import json
 
@@ -8,12 +14,14 @@ from rag.retriever import Retriever
 from rag.store import VectorStore
 
 
+# Load benchmark questions
 def load_questions(path: str) -> list[EvalQuestion]:
     with open(path, encoding="utf-8") as f:
         raw = json.load(f)
     return [EvalQuestion(question=q["question"], expected_source=q["expected_source"]) for q in raw]
 
 
+# Main CLI entry point
 def main() -> None:
     parser = argparse.ArgumentParser(description="Evaluate retrieval quality against a known test set.")
     parser.add_argument("--questions", default="eval_questions.json", help="Path to the test set JSON file")

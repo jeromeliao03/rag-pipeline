@@ -32,16 +32,19 @@
 
   <div class="status" id="status"></div>
 
-  <div class ="sources">
-    <h2>Documents Uploaded</h2>
-    <div id="docList"><p class="empty">No documents uploaded yet.</p></div>
+  <div class="sources">
+    <h2>Documents in docs/</h2>
+    <div id="docList"><p class="empty">Loading...</p></div>
   </div>
 
-  <div class="index-stats" id="indexStats">Checking index status...</div>
+  <div class="index-stats" id="indexStats"></div>
 
 </div>
 
 <script>
+
+  
+  // Config and page elements
   const API_BASE = "http://localhost:8000";
 
   const dropzone = document.getElementById("dropzone");
@@ -53,13 +56,13 @@
   const docListEl = document.getElementById("docList");
   const indexStatsEl = document.getElementById("indexStats");
 
+  // Files waiting to be uploaded to the backend.
   let pendingFiles = [];
 
-  // Click-to-browse
+  // File selection / drag & drop
   dropzone.addEventListener("click", () => fileInput.click());
   fileInput.addEventListener("change", (e) => addFiles(e.target.files));
 
-  // Drag and drop
   ["dragenter", "dragover"].forEach(evt =>
     dropzone.addEventListener(evt, (e) => {
       e.preventDefault();
@@ -74,6 +77,7 @@
   );
   dropzone.addEventListener("drop", (e) => addFiles(e.dataTransfer.files));
 
+  // Add chosen files to the upload queue, ignoring unsupported types.
   function addFiles(fileListArg) {
     const allowed = [".txt", ".md", ".pdf"];
     for (const file of fileListArg) {
@@ -82,7 +86,6 @@
         setStatus(`Skipped ${file.name} — unsupported type ${ext}`, "error");
         continue;
       }
-      // avoid duplicate entries if the same file is added twice
       if (!pendingFiles.some(f => f.name === file.name && f.size === file.size)) {
         pendingFiles.push(file);
       }
@@ -90,6 +93,7 @@
     renderFileList();
   }
 
+  // Show the list of files that are staged for upload.
   function renderFileList() {
     if (pendingFiles.length === 0) {
       fileListEl.innerHTML = "";
@@ -113,31 +117,69 @@
     });
   }
 
+  // Update the message area at the top of the page.
   function setStatus(text, kind) {
     statusEl.className = kind ? `status ${kind}` : "status";
     statusEl.textContent = text;
   }
 
-  //docs uploaded so far list 
-   function renderDocList(files) {
+  // Renders the list of files actually sitting in docs/, each tagged with
+  // whether it's been indexed yet — this is what answers "what have I
+  // uploaded so far", independent of whatever's staged for upload above.
+  function renderDocList(files) {
     if (files.length === 0) {
       docListEl.innerHTML = '<p class="empty">No documents yet — upload some above.</p>';
       return;
     }
     docListEl.innerHTML = files.map(f => `
-      <div class="source-card">
-        <div class="meta">
-          <span class="file">${f.filename}</span>
-          <span class="idx" style="color: ${f.indexed ? 'var(--accent)' : '#A83E1E'}">
-            ${f.indexed ? `indexed · ${f.chunk_count} chunks` : "not indexed yet"}
+      <div class="doc-card">
+        <div class="doc-card-name">${f.filename}</div>
+        <div class="doc-card-meta">
+          <span class="doc-badge ${f.indexed ? 'doc-badge-indexed' : 'doc-badge-pending'}">
+            ${f.indexed ? `Indexed · ${f.chunk_count} chunks` : "Not indexed yet"}
           </span>
+          <span class="doc-card-size">${(f.size_bytes / 1024).toFixed(1)} KB</span>
+          <button class="doc-delete" data-filename="${f.filename.replace(/"/g, '&quot;')}" title="Delete">Delete</button>
         </div>
-        <div class="text">${(f.size_bytes / 1024).toFixed(1)} KB</div>
       </div>
     `).join("");
+
+    docListEl.querySelectorAll(".doc-delete").forEach(btn => {
+      btn.addEventListener("click", () => deleteDocument(btn.dataset.filename));
+    });
   }
 
-    async function refreshDocuments() {
+  // Delete a document from the docs folder and remove its indexed chunks.
+  async function deleteDocument(filename) {
+    const confirmed = confirm(
+      `Delete "${filename}"?\n\nThis removes the file and all its indexed chunks. This can't be undone.`
+    );
+    if (!confirmed) return;
+
+    setStatus(`Deleting ${filename}...`);
+    try {
+      const res = await fetch(`${API_BASE}/documents/delete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Request failed (${res.status})`);
+      }
+      const data = await res.json();
+      setStatus(
+        `Deleted "${data.filename}" - removed ${data.chunks_removed} chunks. Collection now holds ${data.collection_size} chunks.`,
+        "success"
+      );
+      refreshDocuments();
+    } catch (err) {
+      setStatus(`Error: ${err.message}`, "error");
+    }
+  }
+
+  // Ask the backend which files exist in docs/ and whether they are indexed.
+  async function refreshDocuments() {
     try {
       const res = await fetch(`${API_BASE}/documents`);
       if (!res.ok) throw new Error(`Request failed (${res.status})`);
@@ -149,27 +191,27 @@
       indexStatsEl.textContent = "";
     }
   }
-  
 
-    uploadBtn.addEventListener("click", async () => {
+  // Upload and reindex actions
+  uploadBtn.addEventListener("click", async () => {
     if (pendingFiles.length === 0) return;
     uploadBtn.disabled = true;
     setStatus(`Uploading ${pendingFiles.length} file(s)...`);
- 
+
     const formData = new FormData();
     pendingFiles.forEach(f => formData.append("files", f));
- 
+
     try {
       const res = await fetch(`${API_BASE}/upload`, { method: "POST", body: formData });
       if (!res.ok) throw new Error(`Upload failed (${res.status})`);
       const data = await res.json();
- 
+
       let msg = `Saved ${data.saved.length} file(s) to docs/. Click Reindex to make them searchable.`;
       if (data.rejected.length > 0) {
         msg += ` ${data.rejected.length} rejected (unsupported type).`;
       }
       setStatus(msg, "success");
- 
+
       pendingFiles = [];
       renderFileList();
       fileInput.value = "";
@@ -180,11 +222,11 @@
       uploadBtn.disabled = pendingFiles.length === 0;
     }
   });
- 
+
   reindexBtn.addEventListener("click", async () => {
     reindexBtn.disabled = true;
     setStatus("Reindexing docs/ — this embeds every document, may take a moment...");
- 
+
     try {
       const res = await fetch(`${API_BASE}/reindex`, { method: "POST" });
       if (!res.ok) throw new Error(`Reindex failed (${res.status})`);

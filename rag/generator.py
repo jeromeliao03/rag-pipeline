@@ -1,7 +1,14 @@
+"""Answer generation for the RAG pipeline.
+
+This module creates the prompt sent to the LLM, then streams or returns the final
+response using the retrieved document chunks as context.
+"""
+
 from typing import Iterator
 
 from .retriever import RetrievedChunk
 
+# LLM prompt setup
 SYSTEM_PROMPT = (
     "You answer questions using only the numbered context passages provided. "
     "Cite the passages you rely on inline, like [1] or [2]. If the answer is "
@@ -15,6 +22,7 @@ SYSTEM_PROMPT = (
 )
 
 
+# Build prompt from retrieved chunks
 def build_user_message(question: str, chunks: list[RetrievedChunk]) -> str:
     blocks = []
     for i, chunk in enumerate(chunks, start=1):
@@ -23,6 +31,7 @@ def build_user_message(question: str, chunks: list[RetrievedChunk]) -> str:
     return f"Context passages:\n\n{context}\n\nQuestion: {question}"
 
 
+# Final answer generation
 def generate_answer(
     question: str,
     chunks: list[RetrievedChunk],
@@ -41,6 +50,7 @@ def generate_answer(
     return response.content[0].text
 
 
+# Streaming answer generation
 def generate_answer_stream(
     question: str,
     chunks: list[RetrievedChunk],

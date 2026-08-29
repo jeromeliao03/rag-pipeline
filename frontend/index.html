@@ -9,6 +9,7 @@
 <body>
 <div class="wrap">
 
+  <!-- Page header + nav -->
   <header>
     <h1>Ask your documents</h1>
     <p class="sub">Questions are answered only from retrieved passages, with sources cited below each answer.</p>
@@ -18,12 +19,14 @@
     </nav>
   </header>
 
+  <!-- Question input -->
   <div class="ask">
     <input type="text" id="question" placeholder="e.g. what is concept drift and how do you detect it" autofocus>
     <button id="askBtn">Ask</button>
   </div>
   <p class="hint">Press Enter to submit</p>
 
+  <!-- Status message, streamed answer, and source list -->
   <div class="status" id="status"></div>
   <div class="answer" id="answer"></div>
   <div class="source-footer" id="sourceFooter"></div>
@@ -31,49 +34,62 @@
 </div>
 
 <script>
+  // API server address
   const API_BASE = "http://localhost:8000";
 
+  // Page elements
   const questionEl = document.getElementById("question");
   const askBtn = document.getElementById("askBtn");
   const statusEl = document.getElementById("status");
   const answerEl = document.getElementById("answer");
   const sourceFooterEl = document.getElementById("sourceFooter");
 
+  // Ask on Enter key or button click
   questionEl.addEventListener("keydown", (e) => {
     if (e.key === "Enter") askQuestion();
   });
   askBtn.addEventListener("click", askQuestion);
 
-  // Citations like "[1]" are still shown in the answer text (the model
-  // still cites), just no longer clickable — there's no per-source panel
-  // to link them to anymore, so this only handles the visual styling.
+  // Styles [1] [2] citations in the answer text
   function linkifyCitations(text) {
     return text.replace(/\[(\d+)\]/g, '<span class="citation">[$1]</span>');
   }
 
-  // Plain, deduplicated list of source filenames under the answer —
-  // enough to show the answer is grounded in real documents, without the
-  // weight of a full per-passage panel.
+  // Builds the "Sources" list under the answer, grouped by file
   function renderSourceFooter(sources) {
     if (sources.length === 0) {
-      sourceFooterEl.textContent = "";
+      sourceFooterEl.innerHTML = "";
       return;
     }
-    const uniqueFiles = [...new Set(sources.map(s => s.source))];
-    sourceFooterEl.textContent = `Sources: ${uniqueFiles.join(" · ")}`;
+
+    const byFile = new Map();
+    for (const s of sources) {
+      if (!byFile.has(s.source)) byFile.set(s.source, []);
+      byFile.get(s.source).push(s.index);
+    }
+
+    const rows = [...byFile.entries()].map(([filename, indices]) => {
+      const chips = indices.map(i => `<span class="citation">[${i}]</span>`).join(" ");
+      return `<div class="source-row">${chips} <span class="source-name">${filename}</span></div>`;
+    }).join("");
+
+    sourceFooterEl.innerHTML = `<h2>Sources</h2>${rows}`;
   }
 
+  // Sends the question to the API and streams the response back
   async function askQuestion() {
     const question = questionEl.value.trim();
     if (!question) return;
 
+    // Reset the page for a new question
     askBtn.disabled = true;
     statusEl.className = "status";
     statusEl.textContent = "Searching documents...";
     answerEl.innerHTML = "";
-    sourceFooterEl.textContent = "";
+    sourceFooterEl.innerHTML = "";
 
     try {
+      // Send the question
       const res = await fetch(`${API_BASE}/query/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -84,6 +100,7 @@
         throw new Error(`Request failed (${res.status})`);
       }
 
+      // Read the streamed response piece by piece
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
@@ -94,6 +111,7 @@
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
 
+        // Split the incoming text into individual events
         const events = buffer.split("\n\n");
         buffer = events.pop();
 
@@ -105,16 +123,23 @@
           const eventType = eventLine.replace("event:", "").trim();
           const data = JSON.parse(dataLine.replace("data:", "").trim());
 
+          // Sources event — show which documents were found
           if (eventType === "sources") {
             renderSourceFooter(data);
             statusEl.textContent = data.length > 0
               ? `Found ${data.length} passages. Generating answer...`
               : "No matching passages found.";
+
+          // Token event — one piece of the answer
           } else if (eventType === "token") {
             rawAnswer += data.text;
             answerEl.innerHTML = linkifyCitations(rawAnswer);
+
+          // Done event — answer finished
           } else if (eventType === "done") {
             statusEl.textContent = "";
+
+          // Error event — something went wrong
           } else if (eventType === "error") {
             statusEl.className = "status error";
             statusEl.textContent = data.message;

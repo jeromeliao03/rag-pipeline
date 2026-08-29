@@ -1,4 +1,9 @@
-#Pull clean text out of source files.
+"""Document loading utilities for reading supported source files.
+
+This module walks a directory, reads .txt, .md, and .pdf files, and returns the
+clean text content for later chunking and embedding.
+"""
+
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -6,6 +11,7 @@ from typing import Iterator
 
 import pdfplumber
 
+# Supported formats
 SUPPORTED_EXTENSIONS = {".txt", ".md", ".pdf"}
 
 # Matches a lowercase letter immediately followed by an uppercase letter —
@@ -16,12 +22,14 @@ SUPPORTED_EXTENSIONS = {".txt", ".md", ".pdf"}
 _GLUED_WORD_BOUNDARY = re.compile(r"([a-z])([A-Z])")
 
 
+# Document model
 @dataclass
 class Document:
     source: str  # relative path, used later for citations
     text: str
 
 
+# Directory loading
 def load_documents(source_dir: str) -> Iterator[Document]:
     """Walk a directory recursively and yield one Document per supported file."""
     root = Path(source_dir)
@@ -36,6 +44,7 @@ def load_documents(source_dir: str) -> Iterator[Document]:
             yield Document(source=str(path.relative_to(root)), text=text)
 
 
+# File extraction helpers
 def _extract(path: Path) -> str:
     if path.suffix.lower() == ".pdf":
         return _read_pdf(path)
@@ -49,7 +58,7 @@ def _read_pdf(path: Path) -> str:
             words = page.extract_words(x_tolerance=2)
             pages.append(" ".join(w["text"] for w in words))
     text = "\n".join(pages)
-    return _fix_glued_words(text)   # ← route through the cleanup step
+    return _fix_glued_words(text)  # route through cleanup for better PDF text quality
 
 
 def _fix_glued_words(text: str) -> str:
